@@ -312,7 +312,7 @@ class TypeRegistryService(BaseService):
                     ("Website", "url", None),
                     ("Ip", "address", None),
                     ("Port", "number", None),
-                    ("DNSRecord", "name", "dnsrecord"),
+                    ("DNSRecord", "value", "dnsrecord"),
                     ("SSLCertificate", "subject", "sslcertificate"),
                     ("WebTracker", "name", "webtracker"),
                     ("Registrar", "name", "registrar"),
