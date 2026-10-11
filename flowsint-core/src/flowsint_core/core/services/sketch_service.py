@@ -4,7 +4,7 @@ Sketch service for managing sketches and graph operations.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -20,7 +20,11 @@ from .exceptions import (
 )
 
 if TYPE_CHECKING:
+    from ..graph.serializer import TypeResolver
     from .type_registry_service import TypeRegistryService
+
+
+SEARCH_MAX_LIMIT = 500
 
 
 class SketchService(BaseService):
@@ -358,6 +362,129 @@ class SketchService(BaseService):
             raise NotFoundError("Node not found")
 
         return {"nds": result.nodes, "rls": result.edges}
+
+    def search_nodes(
+        self,
+        sketch_id: UUID,
+        user_id: UUID,
+        types: Optional[List[str]] = None,
+        query: Optional[str] = None,
+        filters: Optional[Dict[str, Any]] = None,
+        limit: int = 50,
+        cursor: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Find nodes of a sketch by type, label substring and field values.
+
+        Types are resolved like everywhere else (built-in and the user's custom
+        types, case-insensitive); filters match FlowsintType fields exactly.
+        """
+        self._get_sketch_with_permission(sketch_id, user_id, ["read"])
+        resolver, criteria = self._search_criteria(
+            user_id, types, query, filters, limit
+        )
+
+        graph_service = create_graph_service(
+            sketch_id=str(sketch_id), type_resolver=resolver
+        )
+        try:
+            nodes, next_cursor = graph_service.search_nodes(**criteria, cursor=cursor)
+        except ValueError as e:
+            raise ValidationError(str(e))
+        except Exception as e:
+            print(e)
+            raise DatabaseError("Failed to search nodes")
+        return {"nodes": nodes, "next_cursor": next_cursor}
+
+    def search_investigation(
+        self,
+        investigation_id: UUID,
+        user_id: UUID,
+        types: Optional[List[str]] = None,
+        query: Optional[str] = None,
+        filters: Optional[Dict[str, Any]] = None,
+        limit: int = 50,
+        cursor: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """search_nodes across every sketch of an investigation.
+
+        Each hit says which sketch it is in: {"sketch_id", "sketch_title", "node"}.
+        """
+        if not self._investigation_repo.get_by_id(investigation_id):
+            raise NotFoundError("Investigation not found")
+        self._check_permission(user_id, investigation_id, ["read"])
+        resolver, criteria = self._search_criteria(
+            user_id, types, query, filters, limit
+        )
+
+        sketches = self._sketch_repo.get_by_investigation(investigation_id)
+        if not sketches:
+            return {"nodes": [], "next_cursor": None}
+        titles = {str(sketch.id): sketch.title for sketch in sketches}
+
+        graph_service = create_graph_service(
+            sketch_id=str(sketches[0].id), type_resolver=resolver
+        )
+        try:
+            hits, next_cursor = graph_service.search_nodes_across(
+                sketch_ids=list(titles), **criteria, cursor=cursor
+            )
+        except ValueError as e:
+            raise ValidationError(str(e))
+        except Exception as e:
+            print(e)
+            raise DatabaseError("Failed to search nodes")
+        return {
+            "nodes": [
+                {"sketch_id": sid, "sketch_title": titles.get(sid), "node": node}
+                for sid, node in hits
+            ],
+            "next_cursor": next_cursor,
+        }
+
+    def _search_criteria(
+        self,
+        user_id: UUID,
+        types: Optional[List[str]],
+        query: Optional[str],
+        filters: Optional[Dict[str, Any]],
+        limit: int,
+    ) -> Tuple["TypeResolver", Dict[str, Any]]:
+        """Validate search input; returns the user's resolver and clean criteria."""
+        if not 1 <= limit <= SEARCH_MAX_LIMIT:
+            raise ValidationError(f"limit must be between 1 and {SEARCH_MAX_LIMIT}")
+        resolver = self._build_resolver(user_id)
+        unknown = [t for t in types or [] if resolver(t) is None]
+        if unknown:
+            raise ValidationError(f"Unknown type(s): {', '.join(unknown)}")
+        for field, value in (filters or {}).items():
+            if not isinstance(value, (str, int, float, bool)):
+                raise ValidationError(
+                    f"Filter {field!r} must be a string, number or boolean"
+                )
+        query = query.strip() if query else None
+        return resolver, {
+            "types": [t.lower() for t in types] if types else None,
+            "query": query or None,
+            "filters": filters or None,
+            "limit": limit,
+        }
+
+    def get_stats(self, sketch_id: UUID, user_id: UUID) -> Dict[str, Any]:
+        """Node/edge counts by type and label, plus the most connected nodes."""
+        self._get_sketch_with_permission(sketch_id, user_id, ["read"])
+        graph_service = create_graph_service(sketch_id=str(sketch_id))
+        try:
+            return graph_service.get_stats()
+        except Exception as e:
+            print(e)
+            raise DatabaseError("Failed to compute sketch statistics")
+
+    def _build_resolver(self, user_id: UUID) -> TypeResolver:
+        if self._type_registry:
+            return self._type_registry.build_type_resolver(user_id)
+        from .type_registry_service import local_type_resolver
+
+        return local_type_resolver
 
     def export_sketch(
         self, sketch_id: UUID, user_id: UUID, format: str = "json"

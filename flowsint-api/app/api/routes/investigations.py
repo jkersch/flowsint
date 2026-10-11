@@ -1,10 +1,11 @@
-from typing import List
+from typing import Any, List
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
+from app.api.schemas.graph_search import NodeSearchInput
 from app.api.schemas.investigation import (
     CollaboratorAdd,
     CollaboratorRead,
@@ -21,7 +22,9 @@ from flowsint_core.core.services import (
     DatabaseError,
     NotFoundError,
     PermissionDeniedError,
+    ValidationError,
     create_investigation_service,
+    create_sketch_service,
 )
 from flowsint_core.core.types import Role
 
@@ -85,6 +88,29 @@ def get_investigation_by_id(
         raise HTTPException(status_code=404, detail="Investigation not found")
     except PermissionDeniedError:
         raise HTTPException(status_code=403, detail="Forbidden")
+
+
+@router.post("/{investigation_id}/nodes/search")
+def search_investigation_nodes(
+    investigation_id: UUID,
+    search: NodeSearchInput,
+    db: Session = Depends(get_db),
+    current_user: Profile = Depends(get_current_user),
+) -> Any:
+    """Find nodes across every sketch of an investigation, paged."""
+    service = create_sketch_service(db)
+    try:
+        return service.search_investigation(
+            investigation_id, current_user.id, **search.model_dump()
+        )
+    except NotFoundError:
+        raise HTTPException(status_code=404, detail="Investigation not found")
+    except PermissionDeniedError:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    except ValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except DatabaseError as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/{investigation_id}/sketches", response_model=List[SketchRead])

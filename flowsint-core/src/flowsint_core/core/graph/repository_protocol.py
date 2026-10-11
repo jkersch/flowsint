@@ -87,6 +87,26 @@ class GraphRepositoryProtocol(Protocol):
         """Get a node and all its direct relationships."""
         ...
 
+    def search_nodes(
+        self,
+        sketch_id: str,
+        types: Optional[List[str]] = None,
+        query: Optional[str] = None,
+        filters: Optional[Dict[str, Any]] = None,
+        limit: int = 50,
+        cursor: Optional[str] = None,
+        sketch_ids: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """Find nodes by type, label substring and property values, paged.
+
+        sketch_ids, when given, searches those sketches instead of sketch_id.
+        """
+        ...
+
+    def get_sketch_stats(self, sketch_id: str, top_n: int = 10) -> Dict[str, Any]:
+        """Count nodes by type and edges by label; list most connected nodes."""
+        ...
+
     # Merge operations
     def merge_nodes(
         self,

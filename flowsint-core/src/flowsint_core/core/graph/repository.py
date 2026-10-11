@@ -5,11 +5,17 @@ This module provides a repository pattern implementation for Neo4j,
 handling raw GraphDict object and operations with batching support.
 """
 
+import re
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 from .connection import Neo4jConnection
 from .types import GraphDict
+
+# Node types end up inside the Cypher text (labels can't be parameters), and
+# filter keys name node properties, so both are checked against strict patterns.
+NODE_TYPE_PATTERN = re.compile(r"^[a-z_][a-z0-9_]*$")
+FILTER_FIELD_PATTERN = re.compile(r"^[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)*$")
 
 
 class Neo4jGraphRepository:
@@ -929,6 +935,149 @@ class Neo4jGraphRepository:
         return {
             "nodes": list(nodes.values()),
             "edges": list(edges.values()),
+        }
+
+    def search_nodes(
+        self,
+        sketch_id: str,
+        types: Optional[List[str]] = None,
+        query: Optional[str] = None,
+        filters: Optional[Dict[str, Any]] = None,
+        limit: int = 50,
+        cursor: Optional[str] = None,
+        sketch_ids: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Find nodes of a sketch by type, label substring and property values.
+
+        Args:
+            sketch_id: Investigation sketch ID
+            types: Lowercase node types (Neo4j labels) to match, any of them
+            query: Case-insensitive substring of nodeLabel
+            filters: Exact matches on FlowsintType fields (nodeProperties.*)
+            limit: Maximum number of nodes to return
+            cursor: next_cursor of the previous page
+            sketch_ids: Search these sketches instead of sketch_id (e.g. all
+                sketches of an investigation)
+
+        Returns:
+            Dictionary with 'nodes' ({"id", "sketch_id", "data"} records,
+            ordered by element ID) and 'next_cursor' (None on the last page)
+
+        Raises:
+            ValueError: If a type or filter field name is not allowed
+        """
+        if not self._connection:
+            return {"nodes": [], "next_cursor": None}
+
+        types = types or []
+        for node_type in types:
+            if not NODE_TYPE_PATTERN.match(node_type):
+                raise ValueError(f"Invalid node type: {node_type!r}")
+        properties = {}
+        for field, value in (filters or {}).items():
+            if not FILTER_FIELD_PATTERN.match(field):
+                raise ValueError(f"Invalid filter field: {field!r}")
+            properties[f"nodeProperties.{field}"] = value
+
+        labels = ":" + "|".join(f"`{t}`" for t in types) if types else ""
+        in_sketch = (
+            "n.sketch_id IN $sketch_ids"
+            if sketch_ids is not None
+            else "n.sketch_id = $sketch_id"
+        )
+        cypher = f"""
+        MATCH (n{labels})
+        WHERE {in_sketch} AND n.deleted_at IS NULL
+            AND ($query IS NULL OR toLower(n.nodeLabel) CONTAINS toLower($query))
+            AND all(k IN keys($filters) WHERE n[k] = $filters[k])
+            AND ($cursor IS NULL OR elementId(n) > $cursor)
+        RETURN elementId(n) AS id, n.sketch_id AS sketch_id, properties(n) AS data
+        ORDER BY id
+        LIMIT $limit
+        """
+        rows = self._connection.query(
+            cypher,
+            {
+                "sketch_id": sketch_id,
+                "sketch_ids": sketch_ids,
+                "query": query,
+                "filters": properties,
+                "cursor": cursor,
+                # One extra row tells whether another page exists.
+                "limit": limit + 1,
+            },
+        )
+        rows = rows or []
+        next_cursor = rows[limit - 1]["id"] if len(rows) > limit else None
+        return {"nodes": rows[:limit], "next_cursor": next_cursor}
+
+    def get_sketch_stats(self, sketch_id: str, top_n: int = 10) -> Dict[str, Any]:
+        """
+        Count a sketch's nodes by type and edges by label, and find its most
+        connected nodes.
+
+        Returns:
+            Dictionary with 'nodes', 'edges', 'by_type', 'by_relationship' and
+            'top_nodes' ({"id", "type", "label", "degree"}, highest degree first)
+        """
+        if not self._connection:
+            return {
+                "nodes": 0,
+                "edges": 0,
+                "by_type": {},
+                "by_relationship": {},
+                "top_nodes": [],
+            }
+
+        params = {"sketch_id": sketch_id, "top_n": top_n}
+        type_rows = self._connection.query(
+            """
+            MATCH (n)
+            WHERE n.sketch_id = $sketch_id AND n.deleted_at IS NULL
+            RETURN n.nodeType AS type, count(n) AS count
+            """,
+            params,
+        )
+        rel_rows = self._connection.query(
+            """
+            MATCH (a)-[r]->(b)
+            WHERE a.sketch_id = $sketch_id AND b.sketch_id = $sketch_id
+                AND a.deleted_at IS NULL AND b.deleted_at IS NULL
+                AND r.deleted_at IS NULL
+            RETURN type(r) AS label, count(r) AS count
+            """,
+            params,
+        )
+        top_rows = self._connection.query(
+            """
+            MATCH (n)
+            WHERE n.sketch_id = $sketch_id AND n.deleted_at IS NULL
+            WITH n, COUNT {
+                MATCH (n)-[r]-(m)
+                WHERE m.sketch_id = $sketch_id AND m.deleted_at IS NULL
+                    AND r.deleted_at IS NULL
+            } AS degree
+            WHERE degree > 0
+            RETURN elementId(n) AS id, n.nodeType AS type, n.nodeLabel AS label,
+                   degree
+            ORDER BY degree DESC, id
+            LIMIT $top_n
+            """,
+            params,
+        )
+
+        by_type: Dict[str, int] = {}
+        for row in type_rows or []:
+            key = row["type"] or "unknown"
+            by_type[key] = by_type.get(key, 0) + row["count"]
+        by_relationship = {row["label"]: row["count"] for row in rel_rows or []}
+        return {
+            "nodes": sum(by_type.values()),
+            "edges": sum(by_relationship.values()),
+            "by_type": by_type,
+            "by_relationship": by_relationship,
+            "top_nodes": list(top_rows or []),
         }
 
     def count_nodes_by_sketch(self, sketch_id: str) -> int:

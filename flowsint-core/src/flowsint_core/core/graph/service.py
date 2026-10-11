@@ -5,7 +5,7 @@ This module provides a service layer for graph operations,
 integrating repository and logging functionality.
 """
 
-from typing import Any, Dict, List, Optional, Protocol
+from typing import Any, Dict, List, Optional, Protocol, Tuple
 
 from pydantic import BaseModel
 
@@ -216,6 +216,59 @@ class GraphService:
         )
         edges = GraphSerializer.deserialize_edges(graph_data.get("edges", []))
         return GraphData(nodes=nodes, edges=edges)
+
+    def search_nodes(
+        self,
+        types: Optional[List[str]] = None,
+        query: Optional[str] = None,
+        filters: Optional[Dict[str, Any]] = None,
+        limit: int = 50,
+        cursor: Optional[str] = None,
+    ) -> Tuple[List[GraphNode], Optional[str]]:
+        """Find nodes in this sketch; returns (nodes, next_cursor)."""
+        result = self._repository.search_nodes(
+            sketch_id=self._sketch_id,
+            types=types,
+            query=query,
+            filters=filters,
+            limit=limit,
+            cursor=cursor,
+        )
+        nodes = GraphSerializer.deserialize_nodes(
+            result.get("nodes", []), type_resolver=self._type_resolver
+        )
+        return nodes, result.get("next_cursor")
+
+    def search_nodes_across(
+        self,
+        sketch_ids: List[str],
+        types: Optional[List[str]] = None,
+        query: Optional[str] = None,
+        filters: Optional[Dict[str, Any]] = None,
+        limit: int = 50,
+        cursor: Optional[str] = None,
+    ) -> Tuple[List[Tuple[str, GraphNode]], Optional[str]]:
+        """Search several sketches; returns ([(sketch_id, node)], next_cursor)."""
+        result = self._repository.search_nodes(
+            sketch_id=self._sketch_id,
+            types=types,
+            query=query,
+            filters=filters,
+            limit=limit,
+            cursor=cursor,
+            sketch_ids=sketch_ids,
+        )
+        rows = result.get("nodes", [])
+        nodes = GraphSerializer.deserialize_nodes(
+            rows, type_resolver=self._type_resolver
+        )
+        return [(row["sketch_id"], node) for row, node in zip(rows, nodes)], result.get(
+            "next_cursor"
+        )
+
+    def get_stats(self, top_n: int = 10) -> Dict[str, Any]:
+        """Node/edge counts by type and label, plus the most connected nodes."""
+        return self._repository.get_sketch_stats(self._sketch_id, top_n=top_n)
 
     def update_node(self, element_id: str, updates: Dict[str, Any]) -> str | None:
         flatten_updates = GraphSerializer.flatten(updates)

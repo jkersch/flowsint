@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
+from app.api.schemas.graph_search import NodeSearchInput
 from app.api.schemas.sketch import SketchCreate, SketchRead, SketchUpdate
 from app.api.sketch_utils import update_sketch_timestamp
 from flowsint_core.core.graph import GraphNode, create_graph_service
@@ -392,6 +393,45 @@ def merge_nodes(
         raise HTTPException(status_code=403, detail="Forbidden")
     except ValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except DatabaseError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{sketch_id}/nodes/search")
+def search_nodes(
+    sketch_id: UUID,
+    search: NodeSearchInput,
+    db: Session = Depends(get_db),
+    current_user: Profile = Depends(get_current_user),
+) -> Any:
+    """Find nodes by type, label substring and field values, paged."""
+    service = create_sketch_service(db)
+    try:
+        return service.search_nodes(sketch_id, current_user.id, **search.model_dump())
+    except NotFoundError:
+        raise HTTPException(status_code=404, detail="Sketch not found")
+    except PermissionDeniedError:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    except ValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except DatabaseError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{sketch_id}/stats")
+def get_sketch_stats(
+    sketch_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: Profile = Depends(get_current_user),
+) -> Any:
+    """Node/edge counts by type and label, plus the most connected nodes."""
+    service = create_sketch_service(db)
+    try:
+        return service.get_stats(sketch_id, current_user.id)
+    except NotFoundError:
+        raise HTTPException(status_code=404, detail="Sketch not found")
+    except PermissionDeniedError:
+        raise HTTPException(status_code=403, detail="Forbidden")
     except DatabaseError as e:
         raise HTTPException(status_code=500, detail=str(e))
 

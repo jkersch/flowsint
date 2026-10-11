@@ -332,6 +332,94 @@ class InMemoryGraphRepository:
     # Merge operations
     # -------------------------------------------------------------------------
 
+    def search_nodes(
+        self,
+        sketch_id: str,
+        types: Optional[List[str]] = None,
+        query: Optional[str] = None,
+        filters: Optional[Dict[str, Any]] = None,
+        limit: int = 50,
+        cursor: Optional[str] = None,
+        sketch_ids: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """Find nodes by type, label substring and property values, paged."""
+        from flowsint_core.core.graph.repository import (
+            FILTER_FIELD_PATTERN,
+            NODE_TYPE_PATTERN,
+        )
+
+        for node_type in types or []:
+            if not NODE_TYPE_PATTERN.match(node_type):
+                raise ValueError(f"Invalid node type: {node_type!r}")
+        for field in filters or {}:
+            if not FILTER_FIELD_PATTERN.match(field):
+                raise ValueError(f"Invalid filter field: {field!r}")
+
+        matches = []
+        for element_id in sorted(self._nodes):
+            data = self._nodes[element_id]
+            wanted = sketch_ids if sketch_ids is not None else [sketch_id]
+            if data.get("sketch_id") not in wanted or data.get("deleted_at"):
+                continue
+            if types and not set(data.get("_labels", [])) & set(types):
+                continue
+            label = str(data.get("nodeLabel", ""))
+            if query is not None and query.lower() not in label.lower():
+                continue
+            if any(
+                data.get(f"nodeProperties.{k}") != v for k, v in (filters or {}).items()
+            ):
+                continue
+            if cursor is not None and element_id <= cursor:
+                continue
+            props = {k: v for k, v in data.items() if not k.startswith("_")}
+            matches.append(
+                {"id": element_id, "sketch_id": data.get("sketch_id"), "data": props}
+            )
+
+        next_cursor = matches[limit - 1]["id"] if len(matches) > limit else None
+        return {"nodes": matches[:limit], "next_cursor": next_cursor}
+
+    def get_sketch_stats(self, sketch_id: str, top_n: int = 10) -> Dict[str, Any]:
+        """Count nodes by type and edges by label; list most connected nodes."""
+        live = {
+            element_id: data
+            for element_id, data in self._nodes.items()
+            if data.get("sketch_id") == sketch_id and data.get("deleted_at") is None
+        }
+        by_type: Dict[str, int] = {}
+        for data in live.values():
+            key = data.get("nodeType") or "unknown"
+            by_type[key] = by_type.get(key, 0) + 1
+
+        by_relationship: Dict[str, int] = {}
+        degree: Dict[str, int] = {}
+        for edge in self._edges.values():
+            if edge.get("deleted_at") is not None:
+                continue
+            if edge["source"] not in live or edge["target"] not in live:
+                continue
+            by_relationship[edge["type"]] = by_relationship.get(edge["type"], 0) + 1
+            for end in {edge["source"], edge["target"]}:
+                degree[end] = degree.get(end, 0) + 1
+
+        ranked = sorted(degree.items(), key=lambda item: (-item[1], item[0]))
+        return {
+            "nodes": sum(by_type.values()),
+            "edges": sum(by_relationship.values()),
+            "by_type": by_type,
+            "by_relationship": by_relationship,
+            "top_nodes": [
+                {
+                    "id": element_id,
+                    "type": live[element_id].get("nodeType"),
+                    "label": live[element_id].get("nodeLabel"),
+                    "degree": count,
+                }
+                for element_id, count in ranked[:top_n]
+            ],
+        }
+
     def merge_nodes(
         self,
         old_node_ids: List[str],
