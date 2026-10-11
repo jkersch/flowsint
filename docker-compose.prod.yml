@@ -141,6 +141,27 @@ services:
     networks:
       - flowsint_network
 
+  # Shared MCP server (streamable HTTP). Opt-in:
+  #   docker compose -f docker-compose.prod.yml --profile mcp up -d mcp
+  # Bound to localhost: publish it through your TLS reverse proxy, and set
+  # FLOWSINT_MCP_ALLOWED_HOSTS to the public host name.
+  mcp:
+    image: ghcr.io/reconurge/flowsint-mcp:${FLOWSINT_VERSION:-latest}
+    container_name: flowsint-mcp-prod
+    restart: always
+    profiles: ["mcp"]
+    ports:
+      - "127.0.0.1:5002:5002"
+    environment:
+      - FLOWSINT_API_URL=http://api:5001
+      - FLOWSINT_MCP_ALLOWED_HOSTS=${FLOWSINT_MCP_ALLOWED_HOSTS:-}
+      - FLOWSINT_MCP_ALLOWED_ORIGINS=${FLOWSINT_MCP_ALLOWED_ORIGINS:-}
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - flowsint_network
+
   app:
     # Frontend bundle uses same-origin relative URLs; nginx inside the image
     # proxies /api/ to the "api" service. No VITE_API_URL needed.

@@ -143,6 +143,26 @@ services:
     networks:
       - flowsint_network
 
+  # Shared MCP server (streamable HTTP on :5002). Opt-in:
+  #   docker compose -f docker-compose.dev.yml --profile mcp up -d mcp
+  # Clients authenticate with their own Flowsint API token.
+  mcp:
+    build:
+      context: .
+      dockerfile: flowsint-mcp/Dockerfile
+    container_name: flowsint-mcp-dev
+    restart: unless-stopped
+    profiles: ["mcp"]
+    ports:
+      - "5002:5002"
+    environment:
+      - FLOWSINT_API_URL=http://api:5001
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - flowsint_network
+
   app:
     build:
       context: ./flowsint-app
