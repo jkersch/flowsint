@@ -142,11 +142,13 @@ test:
 	cd flowsint-core && uv run pytest
 	cd flowsint-enrichers && uv run pytest
 	cd flowsint-api && uv run pytest
+	uv run pytest scripts/tests
 
 PY_SRC := flowsint-core/src flowsint-core/tests \
 	flowsint-api/app flowsint-api/tests flowsint-api/alembic \
 	flowsint-enrichers/src flowsint-enrichers/tests \
-	flowsint-types/src flowsint-types/tests
+	flowsint-types/src flowsint-types/tests \
+	scripts
 
 # Full-repo, blocking: formatting and lint are 100% clean today, so any
 # regression here is new debt — no reason to let it in. ruff replaces
