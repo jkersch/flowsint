@@ -1,0 +1,161 @@
+---
+title: "MCP server"
+description: "Connect AI assistants such as Claude to Flowsint through the Model Context Protocol: search sketches, explore the graph, add findings and run enrichers."
+category: "Developers"
+order: 12
+author: "Flowsint Team"
+tags: ["mcp", "ai", "api-tokens", "developers"]
+version: "1.2.11"
+last_updated_at: "2026-10-11"
+---
+
+## What it is
+
+`flowsint-mcp` is a [Model Context Protocol](https://modelcontextprotocol.io) server. It
+gives MCP clients (Claude Code, Claude Desktop, claude.ai connectors, …) a set of tools
+to work with your investigations.
+
+```
+MCP client ──stdio or HTTP──▶ flowsint-mcp ──REST + Bearer token──▶ flowsint-api
+```
+
+The server is a thin client of the Flowsint REST API and never touches Neo4j or
+Postgres itself. Every call runs **as the user whose token is used**, so the
+investigation roles (owner, admin, editor, viewer) apply exactly as in the web UI.
+
+## Tools
+
+| Group | Tools |
+|---|---|
+| Discovery | `list_investigations`, `list_sketches`, `get_sketch`, `list_types`, `list_enrichers`, `list_flows` |
+| Graph read | `search_nodes`, `search_investigation`, `get_node`, `sketch_summary` |
+| Graph write | `add_node`, `add_relationship`, `edit_node`, `import_entities` |
+| Actions | `run_enricher`, `run_flow`, `get_scan` |
+
+Tools that take a node accept its `ref` (from `search_nodes`) or
+`{"type": "Domain", "label": "evil.example"}`. There are no delete tools.
+`FLOWSINT_MCP_READ_ONLY=true` keeps only the read tools and `get_scan`.
+
+The server also offers a resource, `flowsint://types` (all entity types and their
+fields), and two prompts, `investigate_domain` and `investigate_phishing_page`, which
+walk the assistant through a standard pivot and summary.
+
+## API tokens
+
+Scripts and the MCP server authenticate with **personal API tokens** instead of your
+password. A token acts as you, with your roles.
+
+Create one in the web app under **API tokens** in the sidebar: pick a name, an expiry
+and its permissions, then copy the token (it is shown once). Or with the API, using
+your login JWT:
+
+```bash
+curl -s -X POST http://localhost:5001/api/tokens \
+  -H "Authorization: Bearer <login JWT>" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "claude-code laptop", "expires_in_days": 90, "scopes": ["read"]}'
+```
+
+The response contains `token` (`fsk_…`). **It is shown only once**: Flowsint stores
+only a hash of it. Use it like any bearer token:
+
+```bash
+curl -H "Authorization: Bearer fsk_…" http://localhost:5001/api/auth/me
+```
+
+| Endpoint | What it does |
+|---|---|
+| `POST /api/tokens` | Create a token (`name`, optional `expires_in_days` 1–3650, optional `scopes`, default all) |
+| `GET /api/tokens` | List your tokens: name, prefix, created, last used, expiry, revoked |
+| `DELETE /api/tokens/{id}` | Revoke a token immediately |
+
+**Scopes** limit a token on top of your investigation roles:
+
+| Scope | Allows |
+|---|---|
+| `read` | Every `GET`, plus read-only searches and previews (node search, import analysis, type detection, flow preview) |
+| `write` | Everything that creates, changes or deletes data |
+| `enrich` | Launching enrichers and flows, and testing enricher templates (these send node values to external services) |
+
+A request a token isn't scoped for gets `403 This API token lacks the '<scope>'
+scope`. Scopes apply to API tokens only; logging in to the web app is unaffected.
+
+Rules worth knowing:
+
+- Token management needs a **login session**: an API token can't create, list or
+  revoke tokens, so a leaked token can't mint replacements for itself.
+- Revoked, expired, or deactivated-user tokens are rejected with `401`.
+- At most 50 active tokens per user.
+
+## Running it locally (stdio)
+
+Your MCP client starts the server itself. For Claude Code, from the repository:
+
+```bash
+claude mcp add flowsint \
+  -e FLOWSINT_API_URL=http://localhost:5001 \
+  -e FLOWSINT_API_TOKEN=fsk_… \
+  -- uv run --package flowsint-mcp flowsint-mcp
+```
+
+Instead of a token you can set `FLOWSINT_EMAIL` and `FLOWSINT_PASSWORD`; the server
+then logs in and renews its session itself.
+
+## Running a shared server (HTTP)
+
+One server for the whole team, each person using their own token:
+
+```bash
+docker compose -f docker-compose.prod.yml --profile mcp up -d mcp
+```
+
+It serves streamable HTTP on port 5002 at `/mcp` (bound to localhost; publish it through
+your TLS reverse proxy) and `/health` for health checks. It is stateless, so it can run
+as several instances behind a load balancer.
+
+The shared server holds **no credentials**. Every request must carry
+`Authorization: Bearer <your token>`, which is forwarded to the API; requests without
+one get `401`. Setting `FLOWSINT_API_TOKEN`, `FLOWSINT_EMAIL` or `FLOWSINT_PASSWORD` in
+HTTP mode is refused at startup, so the server can never act with somebody else's rights.
+
+Connect a client:
+
+```bash
+claude mcp add --transport http flowsint https://flowsint.example.com/mcp \
+  --header "Authorization: Bearer fsk_…"
+```
+
+## Configuration
+
+| Variable | Default | Description |
+|---|---|---|
+| `FLOWSINT_API_URL` | `http://localhost:5001` | Flowsint API base URL |
+| `FLOWSINT_API_TOKEN` | — | stdio only: token to use |
+| `FLOWSINT_EMAIL` / `FLOWSINT_PASSWORD` | — | stdio only: log in instead of a token |
+| `FLOWSINT_MCP_TRANSPORT` | `stdio` | `stdio` or `http` (`http` in the Docker image) |
+| `FLOWSINT_MCP_HOST` / `FLOWSINT_MCP_PORT` | `0.0.0.0` / `5002` | HTTP bind address |
+| `FLOWSINT_MCP_ALLOWED_HOSTS` | — | Comma-separated `Host` values to accept; enables DNS-rebinding protection |
+| `FLOWSINT_MCP_ALLOWED_ORIGINS` | — | Comma-separated `Origin` values to accept |
+| `FLOWSINT_MCP_READ_ONLY` | `false` | Only register read-only tools |
+| `FLOWSINT_MCP_ENRICH_TIMEOUT` | `120` | Seconds `run_enricher` / `run_flow` wait by default |
+
+## Security notes
+
+- Node properties often come from scraped pages or third-party data. The server
+  truncates them and keeps them inside JSON values, and tells the model to treat them
+  as data, never as instructions. Prompt injection through graph data is the main
+  LLM-specific risk.
+- `run_enricher` and `run_flow` are marked `openWorldHint`: enrichers send node values
+  to external services, and clients can ask for confirmation first.
+- Long waits: `run_enricher` keeps the HTTP request open until the enricher finishes
+  or `timeout_s` passes. Make sure your reverse proxy's read timeout is longer, or call
+  it with `wait=false` and poll `get_scan`.
+
+## Development
+
+```bash
+cd flowsint-mcp && uv run pytest   # 95 % coverage gate
+make test lint typecheck
+```
+
+See `flowsint-mcp/README.md` and `FlowsintMcpServer.md` for the design and test plan.
