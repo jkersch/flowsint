@@ -61,6 +61,11 @@ export const queryKeys = {
     detail: (keyId: string) => ['keys', keyId]
   },
 
+  // Personal API tokens (fsk_...)
+  apiTokens: {
+    list: ['api-tokens']
+  },
+
   // Logs/Events
   logs: {
     bySketch: (sketchId: string) => [sketchId, 'logs']
@@ -90,6 +95,7 @@ export const analysisKeys = queryKeys.analyses
 export const flowKeys = queryKeys.flows
 export const chatKeys = queryKeys.chats
 export const keyKeys = queryKeys.keys
+export const apiTokenKeys = queryKeys.apiTokens
 export const logKeys = queryKeys.logs
 export const actionItemKeys = queryKeys.actionItems
 export const scanKeys = queryKeys.scans

@@ -17,6 +17,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthDashboardRouteImport } from './routes/_auth.dashboard'
 import { Route as AuthDashboardIndexRouteImport } from './routes/_auth.dashboard.index'
 import { Route as AuthDashboardVaultRouteImport } from './routes/_auth.dashboard.vault'
+import { Route as AuthDashboardTokensRouteImport } from './routes/_auth.dashboard.tokens'
 import { Route as AuthDashboardToolsRouteImport } from './routes/_auth.dashboard.tools'
 import { Route as AuthDashboardProfileRouteImport } from './routes/_auth.dashboard.profile'
 import { Route as AuthDashboardFlowsIndexRouteImport } from './routes/_auth.dashboard.flows.index'
@@ -67,6 +68,11 @@ const AuthDashboardIndexRoute = AuthDashboardIndexRouteImport.update({
 const AuthDashboardVaultRoute = AuthDashboardVaultRouteImport.update({
   id: '/vault',
   path: '/vault',
+  getParentRoute: () => AuthDashboardRoute
+} as any)
+const AuthDashboardTokensRoute = AuthDashboardTokensRouteImport.update({
+  id: '/tokens',
+  path: '/tokens',
   getParentRoute: () => AuthDashboardRoute
 } as any)
 const AuthDashboardToolsRoute = AuthDashboardToolsRouteImport.update({
@@ -142,6 +148,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/profile': typeof AuthDashboardProfileRoute
   '/dashboard/tools': typeof AuthDashboardToolsRoute
   '/dashboard/vault': typeof AuthDashboardVaultRoute
+  '/dashboard/tokens': typeof AuthDashboardTokensRoute
   '/dashboard/': typeof AuthDashboardIndexRoute
   '/dashboard/custom-types/$typeId': typeof AuthDashboardCustomTypesTypeIdRoute
   '/dashboard/enrichers/$enricherId': typeof AuthDashboardEnrichersEnricherIdRoute
@@ -162,6 +169,7 @@ export interface FileRoutesByTo {
   '/dashboard/profile': typeof AuthDashboardProfileRoute
   '/dashboard/tools': typeof AuthDashboardToolsRoute
   '/dashboard/vault': typeof AuthDashboardVaultRoute
+  '/dashboard/tokens': typeof AuthDashboardTokensRoute
   '/dashboard': typeof AuthDashboardIndexRoute
   '/dashboard/custom-types/$typeId': typeof AuthDashboardCustomTypesTypeIdRoute
   '/dashboard/enrichers/$enricherId': typeof AuthDashboardEnrichersEnricherIdRoute
@@ -184,6 +192,7 @@ export interface FileRoutesById {
   '/_auth/dashboard/profile': typeof AuthDashboardProfileRoute
   '/_auth/dashboard/tools': typeof AuthDashboardToolsRoute
   '/_auth/dashboard/vault': typeof AuthDashboardVaultRoute
+  '/_auth/dashboard/tokens': typeof AuthDashboardTokensRoute
   '/_auth/dashboard/': typeof AuthDashboardIndexRoute
   '/_auth/dashboard/custom-types/$typeId': typeof AuthDashboardCustomTypesTypeIdRoute
   '/_auth/dashboard/enrichers/$enricherId': typeof AuthDashboardEnrichersEnricherIdRoute
@@ -207,6 +216,7 @@ export interface FileRouteTypes {
     | '/dashboard/profile'
     | '/dashboard/tools'
     | '/dashboard/vault'
+    | '/dashboard/tokens'
     | '/dashboard/'
     | '/dashboard/custom-types/$typeId'
     | '/dashboard/enrichers/$enricherId'
@@ -227,6 +237,7 @@ export interface FileRouteTypes {
     | '/dashboard/profile'
     | '/dashboard/tools'
     | '/dashboard/vault'
+    | '/dashboard/tokens'
     | '/dashboard'
     | '/dashboard/custom-types/$typeId'
     | '/dashboard/enrichers/$enricherId'
@@ -248,6 +259,7 @@ export interface FileRouteTypes {
     | '/_auth/dashboard/profile'
     | '/_auth/dashboard/tools'
     | '/_auth/dashboard/vault'
+    | '/_auth/dashboard/tokens'
     | '/_auth/dashboard/'
     | '/_auth/dashboard/custom-types/$typeId'
     | '/_auth/dashboard/enrichers/$enricherId'
@@ -325,6 +337,13 @@ declare module '@tanstack/react-router' {
       path: '/vault'
       fullPath: '/dashboard/vault'
       preLoaderRoute: typeof AuthDashboardVaultRouteImport
+      parentRoute: typeof AuthDashboardRoute
+    }
+    '/_auth/dashboard/tokens': {
+      id: '/_auth/dashboard/tokens'
+      path: '/tokens'
+      fullPath: '/dashboard/tokens'
+      preLoaderRoute: typeof AuthDashboardTokensRouteImport
       parentRoute: typeof AuthDashboardRoute
     }
     '/_auth/dashboard/tools': {
@@ -436,6 +455,7 @@ interface AuthDashboardRouteChildren {
   AuthDashboardProfileRoute: typeof AuthDashboardProfileRoute
   AuthDashboardToolsRoute: typeof AuthDashboardToolsRoute
   AuthDashboardVaultRoute: typeof AuthDashboardVaultRoute
+  AuthDashboardTokensRoute: typeof AuthDashboardTokensRoute
   AuthDashboardIndexRoute: typeof AuthDashboardIndexRoute
   AuthDashboardCustomTypesTypeIdRoute: typeof AuthDashboardCustomTypesTypeIdRoute
   AuthDashboardEnrichersEnricherIdRoute: typeof AuthDashboardEnrichersEnricherIdRoute
@@ -451,6 +471,7 @@ const AuthDashboardRouteChildren: AuthDashboardRouteChildren = {
   AuthDashboardProfileRoute: AuthDashboardProfileRoute,
   AuthDashboardToolsRoute: AuthDashboardToolsRoute,
   AuthDashboardVaultRoute: AuthDashboardVaultRoute,
+  AuthDashboardTokensRoute: AuthDashboardTokensRoute,
   AuthDashboardIndexRoute: AuthDashboardIndexRoute,
   AuthDashboardCustomTypesTypeIdRoute: AuthDashboardCustomTypesTypeIdRoute,
   AuthDashboardEnrichersEnricherIdRoute: AuthDashboardEnrichersEnricherIdRoute,

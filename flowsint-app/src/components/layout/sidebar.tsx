@@ -1,4 +1,13 @@
-import { Home, Lock, type LucideIcon, PanelLeft, Workflow, Shapes, Puzzle } from 'lucide-react'
+import {
+  Home,
+  KeySquare,
+  Lock,
+  type LucideIcon,
+  PanelLeft,
+  Workflow,
+  Shapes,
+  Puzzle
+} from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { useLayoutStore } from '@/stores/layout-store'
 import { Button } from '../ui/button'
@@ -21,7 +30,8 @@ export const Sidebar = memo(() => {
     { icon: Home, label: 'Dashboard', href: '/dashboard/' },
     { icon: Workflow, label: 'Flows', href: '/dashboard/flows' },
     { icon: Shapes, label: 'Custom types', href: '/dashboard/custom-types' },
-    { icon: Lock, label: 'Vault', href: '/dashboard/vault' }
+    { icon: Lock, label: 'Vault', href: '/dashboard/vault' },
+    { icon: KeySquare, label: 'API tokens', href: '/dashboard/tokens' }
   ]
 
   if (CONFIG.ENRICHER_TEMPLATES_FEATURE_FLAG)
