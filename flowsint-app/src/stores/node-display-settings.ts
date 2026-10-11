@@ -147,7 +147,7 @@ export const TYPE_TO_ICON: Record<string, keyof typeof LucideIcons> = {
   custom: 'Cog'
 }
 
-const DEFAULT_COLORS: Record<ItemType, string> = {
+export const DEFAULT_COLORS: Record<ItemType, string> = {
   domain: '#66A892', // vert sauge
   email: '#8E7CC3', // violet pastel
   ip: '#5AA1C8', // orange chaud
@@ -260,6 +260,21 @@ interface NodesDisplaySettingsState {
   getIcon: (itemType: ItemType) => keyof typeof LucideIcons
 }
 
+// Persisted colors replace the defaults wholesale on rehydrate, so a type added
+// after the user's settings were first saved would have no color. Fill those
+// gaps from DEFAULT_COLORS while keeping every color the user did save.
+export const mergePersistedSettings = (
+  persisted: unknown,
+  current: NodesDisplaySettingsState
+): NodesDisplaySettingsState => {
+  const saved = (persisted ?? {}) as Partial<NodesDisplaySettingsState>
+  return {
+    ...current,
+    ...saved,
+    colors: { ...DEFAULT_COLORS, ...saved.colors }
+  }
+}
+
 export const useNodesDisplaySettings = create<NodesDisplaySettingsState>()(
   persist(
     (set, get) => ({
@@ -293,7 +308,8 @@ export const useNodesDisplaySettings = create<NodesDisplaySettingsState>()(
       }
     }),
     {
-      name: 'nodes-display-settings'
+      name: 'nodes-display-settings',
+      merge: mergePersistedSettings
     }
   )
 )
