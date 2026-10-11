@@ -91,6 +91,25 @@ def test_invalid_entity_is_reported(client, db_session, repo):
     assert "Unknown type" in body["errors"][0]
 
 
+def test_editor_can_import(client, db_session, repo):
+    headers, sketch_id = _seed_user(db_session, roles=(Role.EDITOR,))
+    res = _execute(client, sketch_id, headers, [_node("d", "Domain", {"domain": "a"})])
+    assert res.status_code == 200
+
+
+def test_stranger_cannot_import(client, db_session, repo):
+    headers, sketch_id = _seed_user(db_session, roles=())
+    res = _execute(client, sketch_id, headers, [_node("d", "Domain", {"domain": "a"})])
+    assert res.status_code == 403
+
+
+def test_viewer_cannot_import(client, db_session, repo):
+    headers, sketch_id = _seed_user(db_session, roles=(Role.VIEWER,))
+    res = _execute(client, sketch_id, headers, [_node("d", "Domain", {"domain": "a"})])
+    assert res.status_code == 403
+    repo.batch_create_nodes.assert_not_called()
+
+
 def test_malformed_payload_is_400(client, db_session, repo):
     headers, sketch_id = _seed_user(db_session)
     res = client.post(

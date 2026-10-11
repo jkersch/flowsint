@@ -211,6 +211,27 @@ class TestGetStats:
             create_sketch_service(db_session).get_stats(sketch.id, user.id)
 
 
+class TestGetForUpdate:
+    @pytest.mark.parametrize("role", [Role.OWNER, Role.ADMIN, Role.EDITOR])
+    def test_writers_are_allowed(self, db_session, role):
+        sketch, user = make_sketch(db_session, role)
+        got = create_sketch_service(db_session).get_for_update(sketch.id, user.id)
+        assert got.id == sketch.id
+
+    @pytest.mark.parametrize("role", [Role.VIEWER, None])
+    def test_viewers_and_strangers_are_denied(self, db_session, role):
+        sketch, user = make_sketch(db_session, role)
+        with pytest.raises(PermissionDeniedError):
+            create_sketch_service(db_session).get_for_update(sketch.id, user.id)
+
+    def test_unknown_sketch(self, db_session):
+        _setup(db_session)
+        with pytest.raises(NotFoundError):
+            create_sketch_service(db_session).get_for_update(
+                uuid4(), ProfileFactory().id
+            )
+
+
 class TestSearchInvestigation:
     @pytest.fixture
     def setup(self, db_session, graph):

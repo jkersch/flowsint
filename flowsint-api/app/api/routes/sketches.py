@@ -518,7 +518,8 @@ async def execute_import(
 
     service = create_sketch_service(db)
     try:
-        service.get_by_id(UUID(sketch_id), current_user.id)
+        # Import writes nodes, so it needs update rights, not just read.
+        service.get_for_update(UUID(sketch_id), current_user.id)
     except NotFoundError:
         raise HTTPException(status_code=404, detail="Sketch not found")
     except PermissionDeniedError:
