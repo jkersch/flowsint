@@ -5,7 +5,7 @@ This module provides a service layer for import operations,
 handling file parsing, entity conversion, and batch creation.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 from flowsint_core.core.graph import GraphSerializer, GraphService
@@ -33,6 +33,10 @@ class ImportResult:
     nodes_created: int
     nodes_skipped: int
     errors: List[str]
+    # One entry per written node: {"ref": mapping id, "id": element id,
+    # "type": node type, "label": computed nodeLabel}. Lets API clients address
+    # what they just imported without searching for it.
+    nodes: List[Dict[str, Any]] = field(default_factory=list)
 
 
 class ImportService:
@@ -110,6 +114,7 @@ class ImportService:
         # Convert entity mappings to FlowsintType objects
         conversion_result = self._convert_entities(entities_to_import)
         pydantic_nodes = conversion_result["nodes"]
+        node_refs = conversion_result["refs"]
         nodes_mapping_indices = conversion_result["mapping_indices"]
         conversion_errors = conversion_result["errors"]
 
@@ -148,11 +153,26 @@ class ImportService:
         all_errors = conversion_errors + batch_errors + edge_errors
         nodes_skipped = len(entities_to_import) - nodes_created
 
+        # Element ids line up with pydantic_nodes only if every node made it
+        # into the batch; batch errors drop entries, so then report none.
+        written = []
+        if len(node_element_ids) == len(pydantic_nodes):
+            written = [
+                {
+                    "ref": ref,
+                    "id": element_id,
+                    "type": node["nodeType"],
+                    "label": node["nodeLabel"],
+                }
+                for ref, element_id, node in zip(node_refs, node_element_ids, nodes)
+            ]
+
         return ImportResult(
             status="completed" if not all_errors else "completed_with_errors",
             nodes_created=nodes_created,
             nodes_skipped=nodes_skipped,
             errors=all_errors[:50],
+            nodes=written,
         )
 
     def _convert_entities(self, entities: List[EntityMapping]) -> Dict[str, Any]:
@@ -163,6 +183,7 @@ class ImportService:
             Dict with nodes, mapping_indices, and errors
         """
         pydantic_nodes: List[FlowsintType] = []
+        refs: List[str] = []
         nodes_mapping_indices: Dict[str, int] = {}
         errors: List[str] = []
 
@@ -176,6 +197,7 @@ class ImportService:
                     type_resolver=self._type_resolver,
                 )
                 pydantic_nodes.append(pydantic_obj)
+                refs.append(mapping.id)
 
                 if mapping.node_id:
                     nodes_mapping_indices[mapping.node_id] = len(pydantic_nodes) - 1
@@ -187,6 +209,7 @@ class ImportService:
 
         return {
             "nodes": pydantic_nodes,
+            "refs": refs,
             "mapping_indices": nodes_mapping_indices,
             "errors": errors,
         }

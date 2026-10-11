@@ -110,6 +110,10 @@ class ImportExecuteResponse(BaseModel):
     nodes_created: int
     nodes_skipped: int
     errors: List[str]
+    nodes: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="Written nodes: ref (mapping id), id, type, label",
+    )
 
 
 @router.post("/create", response_model=SketchRead, status_code=status.HTTP_201_CREATED)
@@ -564,6 +568,7 @@ async def execute_import(
         nodes_created=result.nodes_created,
         nodes_skipped=result.nodes_skipped,
         errors=result.errors,
+        nodes=result.nodes,
     )
 
 
