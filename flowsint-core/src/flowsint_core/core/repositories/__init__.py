@@ -1,6 +1,7 @@
 """Repository layer for database operations."""
 
 from .analysis_repository import AnalysisRepository
+from .api_token_repository import ApiTokenRepository
 from .base import BaseRepository
 from .chat_repository import ChatRepository
 from .custom_type_repository import CustomTypeRepository
@@ -26,4 +27,5 @@ __all__ = [
     "FlowRepository",
     "CustomTypeRepository",
     "EnricherTemplateRepository",
+    "ApiTokenRepository",
 ]

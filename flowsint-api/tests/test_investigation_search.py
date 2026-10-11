@@ -68,3 +68,11 @@ def test_backend_failure(client, db_session, repo):  # noqa: F811
     res = _search(client, _investigation_of(db_session, sketch_id), headers)
     assert res.status_code == 500
 
+
+def test_read_only_token_may_search(client, db_session, repo):  # noqa: F811
+    from .test_api_tokens import _bearer, _create
+
+    headers, sketch_id = _seed_user(db_session)
+    token = _create(client, headers, scopes=["read"]).json()["token"]
+    res = _search(client, _investigation_of(db_session, sketch_id), _bearer(token))
+    assert res.status_code == 200

@@ -420,3 +420,41 @@ class EnricherTemplate(Base):
         Index("idx_enricher_templates_category", "category"),
         Index("idx_enricher_templates_is_public", "is_public"),
     )
+
+
+class ApiToken(Base):
+    """Personal API key for programmatic access (scripts, the MCP server).
+
+    Only a SHA-256 hash of the token is stored; the token itself is shown once,
+    when it is created. Revoked tokens are kept for the audit trail.
+    """
+
+    __tablename__ = "api_tokens"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    owner_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("profiles.id", onupdate="CASCADE", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    # First characters of the token, safe to show so users can tell keys apart.
+    prefix: Mapped[str] = mapped_column(String(16), nullable=False)
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    # Subset of "read", "write", "enrich"; see ApiTokenService.
+    scopes: Mapped[list] = mapped_column(
+        JSON, nullable=False, default=lambda: ["read", "write", "enrich"]
+    )
+    created_at = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        server_default=func.now(),
+        nullable=False,
+    )
+    last_used_at = mapped_column(DateTime(timezone=True), nullable=True)
+    expires_at = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked_at = mapped_column(DateTime(timezone=True), nullable=True)
+
+    owner = relationship("Profile", foreign_keys=[owner_id])
+
+    __table_args__ = (Index("idx_api_tokens_owner_id", "owner_id"),)

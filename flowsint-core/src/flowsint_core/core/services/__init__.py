@@ -6,6 +6,7 @@ and domain logic, enabling cleaner route handlers and better testability.
 """
 
 from .analysis_service import AnalysisService, create_analysis_service
+from .api_token_service import ApiTokenService, create_api_token_service
 from .auth_service import AuthService, create_auth_service
 from .base import BaseService
 from .chat_service import ChatService, create_chat_service
@@ -88,4 +89,7 @@ __all__ = [
     # Vault
     "VaultService",
     "create_vault_service",
+    # API tokens
+    "ApiTokenService",
+    "create_api_token_service",
 ]
