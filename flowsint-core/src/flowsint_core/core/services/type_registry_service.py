@@ -315,6 +315,21 @@ class TypeRegistryService(BaseService):
                     ("DNSRecord", "name", "dnsrecord"),
                     ("SSLCertificate", "subject", "sslcertificate"),
                     ("WebTracker", "name", "webtracker"),
+                    ("Registrar", "name", "registrar"),
+                    ("ISP", "name", "isp"),
+                ],
+            },
+            {
+                "id": uuid4(),
+                "type": "threat_intel_category",
+                "key": "threat_intel",
+                "icon": "threatactor",
+                "label": "Threat Intelligence",
+                "fields": [],
+                "children": [
+                    ("PhishingPage", "url", "phishingpage"),
+                    ("Phishkit", "sha256", "phishkit"),
+                    ("ThreatActor", "name", "threatactor"),
                 ],
             },
             {

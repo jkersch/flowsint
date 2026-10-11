@@ -42,6 +42,11 @@ export type ItemType =
   | 'webtracker'
   | 'weapon'
   | 'whois'
+  | 'phishingpage'
+  | 'phishkit'
+  | 'threatactor'
+  | 'registrar'
+  | 'isp'
   | 'custom'
 
 export const ITEM_TYPES: ItemType[] = [
@@ -84,6 +89,11 @@ export const ITEM_TYPES: ItemType[] = [
   'webtracker',
   'weapon',
   'whois',
+  'phishingpage',
+  'phishkit',
+  'threatactor',
+  'registrar',
+  'isp',
   'custom'
 ]
 
@@ -128,6 +138,11 @@ export const TYPE_TO_ICON: Record<string, keyof typeof LucideIcons> = {
   webtracker: 'Target',
   weapon: 'Sword',
   whois: 'Info',
+  phishingpage: 'Fish',
+  phishkit: 'Package',
+  threatactor: 'Skull',
+  registrar: 'BookUser',
+  isp: 'Server',
   default: 'FileQuestion',
   custom: 'Cog'
 }
@@ -172,6 +187,11 @@ const DEFAULT_COLORS: Record<ItemType, string> = {
   webtracker: '#C7BF50', // jaune doux
   weapon: '#E98973', // corail brun
   whois: '#9B6F9B', // violet doux
+  phishingpage: '#D9534F', // rouge alerte
+  phishkit: '#C77D3A', // ambre brûlé
+  threatactor: '#7A4E8C', // prune
+  registrar: '#6E8FA8', // bleu ardoise
+  isp: '#5F9E7A', // vert forêt
   custom: '#9B6F9B'
 }
 

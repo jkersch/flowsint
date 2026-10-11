@@ -29,13 +29,17 @@ from .flowsint_base import FlowsintType
 from .gravatar import Gravatar
 from .individual import Individual
 from .ip import Ip
+from .isp import ISP
 from .leak import Leak
 from .malware import Malware
 from .message import Message
 from .organization import Organization
+from .phishing_page import PhishingPage
+from .phishkit import Phishkit
 from .phone import Phone
 from .phrase import Phrase
 from .port import Port
+from .registrar import Registrar
 from .registry import TYPE_REGISTRY, flowsint_type, get_type, load_all_types
 from .reputation_score import ReputationScore
 from .risk_profile import RiskProfile
@@ -44,6 +48,7 @@ from .session import Session
 from .social_account import SocialAccount
 from .ssl_certificate import SSLCertificate
 from .technology import Technology
+from .threat_actor import ThreatActor
 from .username import Username
 from .wallet import CryptoNFT, CryptoWallet, CryptoWalletTransaction
 from .weapon import Weapon
@@ -75,13 +80,17 @@ __all__ = [
     "Gravatar",
     "Individual",
     "Ip",
+    "ISP",
     "Leak",
     "Malware",
     "Message",
     "Organization",
+    "PhishingPage",
+    "Phishkit",
     "Phone",
     "Phrase",
     "Port",
+    "Registrar",
     "ReputationScore",
     "RiskProfile",
     "Script",
@@ -89,6 +98,7 @@ __all__ = [
     "SocialAccount",
     "SSLCertificate",
     "Technology",
+    "ThreatActor",
     "Username",
     "CryptoWallet",
     "CryptoWalletTransaction",
@@ -153,6 +163,11 @@ TYPE_TO_MODEL: Dict[str, Type[BaseModel]] = {
     "webtracker": WebTracker,
     "weapon": Weapon,
     "whois": Whois,
+    "phishingpage": PhishingPage,
+    "phishkit": Phishkit,
+    "threatactor": ThreatActor,
+    "registrar": Registrar,
+    "isp": ISP,
 }
 
 
