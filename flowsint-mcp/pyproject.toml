@@ -1,0 +1,48 @@
+[project]
+name = "flowsint-mcp"
+version = "1.2.11"
+description = "Model Context Protocol server for Flowsint"
+license = "Apache-2.0"
+authors = [{ name = "dextmorgn", email = "contact@flowsint.io" }]
+requires-python = ">=3.12,<4.0"
+# Talks to flowsint-api over HTTP only: no flowsint-core/flowsint-types imports,
+# so permissions stay enforced by the API and the image stays small.
+dependencies = [
+    "mcp>=1.30,<2.0",
+    "httpx>=0.28,<0.29",
+    "pydantic>=2.11.7,<3.0.0",
+]
+
+[project.scripts]
+flowsint-mcp = "flowsint_mcp.__main__:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3,<10.0.0",
+    "pytest-httpx>=0.36,<1.0",
+    "pytest-cov>=7.0,<8.0",
+    "ruff>=0.16,<1.0",
+    "mypy>=1.17,<2.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/flowsint_mcp"]
+
+[tool.pytest.ini_options]
+addopts = "--cov=flowsint_mcp --cov-report=term-missing --cov-fail-under=95"
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disable_error_code = ["import-untyped"]
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false

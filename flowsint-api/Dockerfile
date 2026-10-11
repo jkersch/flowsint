@@ -28,8 +28,11 @@ COPY flowsint-types ./flowsint-types
 COPY flowsint-core ./flowsint-core
 COPY flowsint-enrichers ./flowsint-enrichers
 COPY flowsint-api ./flowsint-api
+# Workspace member: uv needs it to resolve the lockfile, but the API image
+# doesn't run it (it has its own image, see flowsint-mcp/Dockerfile).
+COPY flowsint-mcp ./flowsint-mcp
 
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev --no-install-package flowsint-mcp
 
 # DEV
 FROM python:3.12-slim AS dev

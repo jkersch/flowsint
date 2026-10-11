@@ -142,12 +142,14 @@ test:
 	cd flowsint-core && uv run pytest
 	cd flowsint-enrichers && uv run pytest
 	cd flowsint-api && uv run pytest
+	cd flowsint-mcp && uv run pytest
 	uv run pytest scripts/tests
 
 PY_SRC := flowsint-core/src flowsint-core/tests \
 	flowsint-api/app flowsint-api/tests flowsint-api/alembic \
 	flowsint-enrichers/src flowsint-enrichers/tests \
 	flowsint-types/src flowsint-types/tests \
+	flowsint-mcp/src flowsint-mcp/tests \
 	scripts
 
 # Full-repo, blocking: formatting and lint are 100% clean today, so any
@@ -203,7 +205,7 @@ typecheck:
 	fi; \
 	echo "$$changed"; \
 	mypy_status=0; \
-	for pkg in flowsint-core flowsint-api flowsint-enrichers flowsint-types; do \
+	for pkg in flowsint-core flowsint-api flowsint-enrichers flowsint-types flowsint-mcp; do \
 		files=$$(echo "$$changed" | grep "^$$pkg/" | sed "s|^$$pkg/||"); \
 		[ -z "$$files" ] && continue; \
 		echo "== mypy: $$pkg =="; \

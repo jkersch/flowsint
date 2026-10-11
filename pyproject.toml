@@ -9,6 +9,7 @@ dependencies = [
     "flowsint-types",
     "flowsint-enrichers",
     "flowsint-api",
+    "flowsint-mcp",
     "pydantic[email]>=2.11.7,<3.0.0",
     "python-multipart>=0.0.27,<0.1.0",
     "docker>=7.1.0,<8.0.0",
@@ -19,6 +20,7 @@ members = [
     "flowsint-api",
     "flowsint-core",
     "flowsint-enrichers",
+    "flowsint-mcp",
     "flowsint-types",
 ]
 
@@ -27,6 +29,7 @@ flowsint-core = { workspace = true }
 flowsint-types = { workspace = true }
 flowsint-enrichers = { workspace = true }
 flowsint-api = { workspace = true }
+flowsint-mcp = { workspace = true }
 
 # `make lint`/`lint-fix` run `uv run ruff` from the repo root (not per-package
 # like typecheck does), so ruff has to be resolvable from the root project's
@@ -69,7 +72,7 @@ ignore = ["E501"]
 # Same list the old isort config carried per-package (see git history) —
 # "app" is flowsint-api's own importable module name (FastAPI convention),
 # distinct from its pip/build name "flowsint-api".
-known-first-party = ["flowsint_core", "flowsint_types", "flowsint_enrichers", "flowsint_api", "app"]
+known-first-party = ["flowsint_core", "flowsint_types", "flowsint_enrichers", "flowsint_api", "flowsint_mcp", "app"]
 
 [tool.ruff.lint.per-file-ignores]
 # Known debt, not a green-light: package re-exports its entire public API via
